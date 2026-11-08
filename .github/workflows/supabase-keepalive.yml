@@ -1,0 +1,36 @@
+name: Supabase Keep-Alive
+
+on:
+  schedule:
+    # Exécution automatique tous les 5 jours à 08:00 UTC pour éviter la mise en pause
+    # du projet gratuit Supabase (qui s'active après 7 jours d'inactivité).
+    - cron: "0 8 */5 * *"
+  workflow_dispatch:
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "ℹ️ Secrets SUPABASE_URL ou SUPABASE_ANON_KEY non configurés dans GitHub. Ignoré proprement."
+            exit 0
+          fi
+
+          echo "🔄 Envoi d'une requête Keep-Alive vers Supabase..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${SUPABASE_URL%/}/rest/v1/members?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+
+          echo "Statut HTTP reçu : ${HTTP_STATUS}"
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "✅ Ping Supabase réussi ! Le projet reste actif."
+          else
+            echo "⚠️ Le ping a retourné le code HTTP ${HTTP_STATUS}."
+            exit 1
+          fi

@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#143628" />
+  <title>🎄 Liste de Noël en Famille 2026</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans & Fraunces -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            pine: {
+              50: '#f2f7f5',
+              100: '#e6f0ec',
+              700: '#276249',
+              800: '#1d4b38',
+              900: '#143628',
+              950: '#0a1f16',
+            },
+            cranberry: {
+              50: '#fdf4f4',
+              100: '#fce8e8',
+              500: '#dc3536',
+              600: '#c82829',
+              700: '#a11d1e',
+            },
+            gold: {
+              50: '#fefaf0',
+              100: '#fbf3e0',
+              400: '#e5b968',
+              500: '#d4a048',
+              600: '#b7812b',
+            },
+            cream: {
+              50: '#faf7f2',
+              100: '#f3ede2',
+              200: '#e6dccb',
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            serif: ['"Fraunces"', 'Georgia', 'serif'],
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body class="antialiased selection:bg-cranberry-600 selection:text-white">
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed top-4 right-4 left-4 sm:left-auto sm:w-96 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Demo / Quick-Switch Banner -->
+  <div id="quick-switch-banner" class="bg-pine-950 text-cream-50 border-b border-white/10 text-xs">
+    <div class="max-w-6xl mx-auto px-3 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <span id="mode-indicator-badge" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-gold-500/20 text-gold-400 border border-gold-400/30">
+          ✨ Mode Démo
+        </span>
+        <span class="text-white/80 hidden sm:inline" id="quick-switch-label">Tester la vue d'un membre en 1 clic :</span>
+      </div>
+      <div id="quick-switch-members" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 max-w-full">
+        <!-- Populated dynamically by app.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Festive Header -->
+  <header class="festive-header text-white shadow-lg">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 pt-5 pb-5 relative z-10">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <!-- Brand & Title -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-2xl shadow-inner">
+              🎄
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h1 class="font-serif-festive text-xl sm:text-2xl font-bold tracking-tight text-white">
+                  Cadeaux de Noël 2026
+                </h1>
+              </div>
+              <p class="text-xs sm:text-sm text-emerald-100/80">
+                Listes de souhaits & réservations secrètes en famille
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Logged-In Member Profile & Magic Link Copy -->
+        <div id="header-user-section" class="hidden flex-wrap items-center justify-between sm:justify-end gap-2.5 bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-2 sm:px-3.5 sm:py-2">
+          <div class="flex items-center gap-2.5">
+            <span id="current-user-avatar" class="w-9 h-9 rounded-xl bg-gold-500/25 border border-gold-400/40 flex items-center justify-center text-lg">
+              🎅
+            </span>
+            <div class="leading-tight">
+              <div class="flex items-center gap-1.5">
+                <span class="text-xs text-emerald-100/75">Connecté :</span>
+                <strong id="current-user-name" class="text-sm font-bold text-white">—</strong>
+                <span id="current-user-admin-badge" class="hidden px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-gold-500 text-pine-950 rounded-md">
+                  Admin
+                </span>
+              </div>
+              <button id="btn-copy-my-link" type="button" class="text-[11px] text-gold-400 hover:text-gold-300 underline decoration-gold-400/50 flex items-center gap-1 mt-0.5">
+                <span>🔗 Copier mon lien personnel</span>
+              </button>
+            </div>
+          </div>
+
+          <button id="btn-header-add-wish" type="button" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cranberry-600 hover:bg-cranberry-500 text-white text-xs font-semibold shadow-sm transition">
+            <span>＋</span>
+            <span>Ajouter un souhait</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Desktop Navigation Bar -->
+      <nav id="desktop-nav" class="hidden md:flex items-center gap-2 mt-5 pt-4 border-t border-white/10">
+        <button type="button" data-tab="family" class="desktop-tab-btn active px-4 py-2 rounded-xl text-sm font-semibold text-white/90 hover:bg-white/10 flex items-center gap-2">
+          <span>🎄</span>
+          <span>La Famille</span>
+          <span id="nav-badge-family" class="px-2 py-0.5 text-xs rounded-full bg-pine-100 text-pine-900 font-bold">0</span>
+        </button>
+        <button type="button" data-tab="mylist" class="desktop-tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-white/90 hover:bg-white/10 flex items-center gap-2">
+          <span>🎁</span>
+          <span>Ma Liste</span>
+          <span id="nav-badge-mylist" class="px-2 py-0.5 text-xs rounded-full bg-white/20 text-white font-bold">0</span>
+        </button>
+        <button type="button" data-tab="mypurchases" class="desktop-tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-white/90 hover:bg-white/10 flex items-center gap-2">
+          <span>🛍️</span>
+          <span>Mes Achats</span>
+          <span id="nav-badge-mypurchases" class="px-2 py-0.5 text-xs rounded-full bg-white/20 text-white font-bold">0</span>
+        </button>
+        <button type="button" data-tab="admin" id="desktop-tab-admin" class="hidden desktop-tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-white/90 hover:bg-white/10 items-center gap-2 ml-auto">
+          <span>⚙️</span>
+          <span>Admin</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+
+    <!-- Loading State -->
+    <div id="app-loading" class="py-16 text-center">
+      <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-pine-900 text-white text-2xl animate-bounce shadow-md mb-3">
+        🎄
+      </div>
+      <p class="text-sm font-medium text-pine-900/70">Préparation de la hotte du Père Noël…</p>
+    </div>
+
+    <!-- Auth / Welcome Screen (Shown if no token identified or 0 members in DB) -->
+    <section id="auth-screen" class="hidden max-w-xl mx-auto my-4">
+      <div class="bg-white rounded-3xl border border-pine-900/10 shadow-xl p-6 sm:p-8">
+        <div class="text-center mb-6">
+          <div class="w-16 h-16 rounded-2xl bg-pine-50 border border-pine-900/10 flex items-center justify-center text-3xl mx-auto mb-3">
+            🎅
+          </div>
+          <h2 class="font-serif-festive text-2xl font-bold text-pine-900">
+            Bienvenue sur la liste de Noël !
+          </h2>
+          <p class="text-sm text-gray-600 mt-1">
+            Chaque membre de la famille dispose d'un lien magique personnel pour gérer sa liste et réserver en secret.
+          </p>
+        </div>
+
+        <!-- Member Picker (When members exist) -->
+        <div id="auth-member-picker-section" class="mb-6">
+          <label class="block text-xs font-bold uppercase tracking-wider text-pine-900/70 mb-2.5">
+            Choisir ton profil :
+          </label>
+          <div id="auth-member-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <!-- Populated by app.js -->
+          </div>
+        </div>
+
+        <!-- Manual Token Form -->
+        <form id="form-manual-token" class="pt-4 border-t border-gray-100">
+          <label for="input-manual-token" class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">
+            Ou entrer ton code / token personnel :
+          </label>
+          <div class="flex gap-2">
+            <input
+              id="input-manual-token"
+              type="text"
+              placeholder="Ex: chris-admin-2026"
+              class="flex-1 rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pine-900 focus:border-pine-900"
+            />
+            <button
+              type="submit"
+              class="px-4 py-2.5 rounded-xl bg-pine-900 hover:bg-pine-800 text-white text-sm font-semibold transition"
+            >
+              Entrer
+            </button>
+          </div>
+        </form>
+
+        <!-- First Admin Creation (Shown when 0 members in Supabase DB) -->
+        <div id="first-admin-setup" class="hidden mt-6 pt-6 border-t border-gray-200">
+          <div class="bg-gold-50 border border-gold-400/40 rounded-2xl p-4 mb-4">
+            <h3 class="text-sm font-bold text-pine-900 flex items-center gap-1.5">
+              <span>✨</span>
+              <span>Initialisation de la famille (Premier Administrateur)</span>
+            </h3>
+            <p class="text-xs text-gray-700 mt-1">
+              Aucun membre n'existe encore dans la base de données. Crée ton profil Administrateur pour commencer !
+            </p>
+          </div>
+          <form id="form-first-admin" class="space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-semibold text-gray-700 mb-1">Ton prénom *</label>
+                <input
+                  id="first-admin-name"
+                  type="text"
+                  required
+                  placeholder="Ex: Chris"
+                  class="w-full rounded-xl border border-gray-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pine-900"
+                />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">Emoji</label>
+                <input
+                  id="first-admin-emoji"
+                  type="text"
+                  value="🎄"
+                  maxlength="4"
+                  class="w-full rounded-xl border border-gray-300 px-3.5 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-pine-900"
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              class="w-full py-2.5 px-4 rounded-xl bg-cranberry-600 hover:bg-cranberry-500 text-white font-semibold text-sm shadow-sm transition"
+            >
+              🚀 Créer mon compte Admin
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- Authenticated Main Views -->
+    <div id="app-views" class="hidden space-y-6">
+
+      <!-- ========================================== -->
+      <!-- TAB 1: LA FAMILLE (Wishlists & Reservations) -->
+      <!-- ========================================== -->
+      <section id="view-family" class="space-y-5">
+        <!-- Sticky / Top Filters Card -->
+        <div class="bg-white rounded-2xl border border-pine-900/10 p-4 shadow-sm space-y-3.5">
+          <!-- Member Pills -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-pine-900/60">
+                Filtrer par membre de la famille
+              </span>
+              <span id="family-results-count" class="text-xs font-medium text-gray-500"></span>
+            </div>
+            <div id="family-member-pills" class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+              <!-- Populated by app.js -->
+            </div>
+          </div>
+
+          <!-- Status Filter Pills & Search Input -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-gray-100">
+            <div id="family-status-pills" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              <button type="button" data-status="all" class="status-pill active px-3 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 bg-gray-50 text-gray-700">
+                Tous
+              </button>
+              <button type="button" data-status="available" class="status-pill px-3 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 bg-gray-50 text-gray-700">
+                🟢 Disponibles
+              </button>
+              <button type="button" data-status="reserved" class="status-pill px-3 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 bg-gray-50 text-gray-700">
+                🔒 Réservés
+              </button>
+              <button type="button" data-status="reserved_by_me" class="status-pill px-3 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 bg-gray-50 text-gray-700">
+                🛍️ Réservés par moi
+              </button>
+            </div>
+
+            <!-- Search Input -->
+            <div class="relative sm:w-64">
+              <span class="absolute inset-y-0 left-3 flex items-center text-gray-400 text-sm pointer-events-none">🔍</span>
+              <input
+                id="family-search-input"
+                type="search"
+                placeholder="Rechercher un cadeau, membre…"
+                class="w-full pl-9 pr-8 py-1.5 rounded-xl border border-gray-200 bg-cream-50/60 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-pine-900"
+              />
+              <button
+                id="btn-clear-search"
+                type="button"
+                class="hidden absolute inset-y-0 right-2.5 items-center text-gray-400 hover:text-gray-600 text-xs"
+                title="Effacer la recherche"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Anti-Spoiler Notice when filtering by status -->
+        <div id="anti-spoiler-filter-banner" class="hidden bg-gold-50 border border-gold-400/50 rounded-2xl p-3.5 text-xs sm:text-sm text-pine-900 flex items-center gap-3 shadow-sm">
+          <span class="text-xl shrink-0">🤫</span>
+          <div>
+            <strong>Surprise de Noël protégée :</strong>
+            Pour garder la surprise de Noël, le filtre réservé/disponible ne s'applique pas à ta propre liste ! Tes propres souhaits sont masqués tant que ce filtre de statut est actif.
+          </div>
+        </div>
+
+        <!-- Family Gifts Grid -->
+        <div id="family-gifts-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <!-- Populated dynamically by app.js -->
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 2: MA LISTE (My Personal Wishlist)     -->
+      <!-- ========================================== -->
+      <section id="view-mylist" class="hidden space-y-5">
+        <!-- Header Card -->
+        <div class="bg-white rounded-2xl border border-pine-900/10 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2.5">
+              <h2 class="font-serif-festive text-xl sm:text-2xl font-bold text-pine-900">
+                🎁 Ma Liste de souhaits
+              </h2>
+              <span id="mylist-header-count" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-pine-100 text-pine-900">
+                0 souhait
+              </span>
+            </div>
+            <p class="text-xs sm:text-sm text-gray-600 mt-1">
+              Ajoute tes idées de cadeaux avec des liens, photos ou précisions pour aider la famille.
+            </p>
+          </div>
+          <button
+            id="btn-mylist-add-wish"
+            type="button"
+            class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-cranberry-600 hover:bg-cranberry-500 text-white font-semibold text-sm shadow-md transition shrink-0"
+          >
+            <span class="text-base leading-none">＋</span>
+            <span>Ajouter un souhait</span>
+          </button>
+        </div>
+
+        <!-- Anti-Spoiler Guarantee Banner -->
+        <div class="bg-gradient-to-r from-pine-900 to-pine-800 text-white rounded-2xl p-4 shadow-sm flex items-center gap-3.5">
+          <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center text-xl shrink-0">
+            🤫
+          </div>
+          <p class="text-xs sm:text-sm text-emerald-50 leading-relaxed">
+            <strong class="text-white">Surprise garantie :</strong> tu ne peux pas voir quels cadeaux de ta liste ont été réservés par la famille.
+          </p>
+        </div>
+
+        <!-- My Gifts Grid -->
+        <div id="mylist-gifts-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <!-- Populated dynamically by app.js -->
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 3: MES ACHATS (Gifts Reserved by Me)   -->
+      <!-- ========================================== -->
+      <section id="view-mypurchases" class="hidden space-y-5">
+        <!-- Summary Header & Budget KPIs -->
+        <div class="bg-white rounded-2xl border border-pine-900/10 p-5 shadow-sm">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 class="font-serif-festive text-xl sm:text-2xl font-bold text-pine-900">
+                🛍️ Mes Achats de Noël
+              </h2>
+              <p class="text-xs sm:text-sm text-gray-600 mt-1">
+                Retrouve ici tous les cadeaux que tu as réservés pour les autres membres de la famille.
+              </p>
+            </div>
+
+            <!-- Budget KPI Pills -->
+            <div class="flex flex-wrap items-center gap-3">
+              <div class="bg-pine-50 border border-pine-900/10 rounded-2xl px-4 py-2.5 text-center">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-pine-900/60">Cadeaux réservés</div>
+                <div id="purchases-kpi-count" class="text-lg font-bold text-pine-900">0</div>
+              </div>
+              <div class="bg-gold-50 border border-gold-400/40 rounded-2xl px-4 py-2.5 text-center">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-gold-600">Budget total estimé</div>
+                <div id="purchases-kpi-budget" class="text-lg font-bold text-pine-900">0 €</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- My Reserved Gifts List -->
+        <div id="mypurchases-list" class="space-y-4">
+          <!-- Populated dynamically by app.js -->
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 4: ADMIN (Members, Reservations, DB)   -->
+      <!-- ========================================== -->
+      <section id="view-admin" class="hidden space-y-6">
+        <!-- Admin Section 1: Members & Magic Links -->
+        <div class="bg-white rounded-2xl border border-pine-900/10 p-5 shadow-sm space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
+            <div>
+              <h2 class="font-serif-festive text-xl font-bold text-pine-900 flex items-center gap-2">
+                <span>👨‍👩‍👧‍👦</span>
+                <span>Gestion des membres & Liens magiques</span>
+              </h2>
+              <p class="text-xs sm:text-sm text-gray-600 mt-0.5">
+                Crée les profils de la famille et partage à chacun son lien personnel par WhatsApp ou SMS.
+              </p>
+            </div>
+            <button
+              id="btn-admin-add-member"
+              type="button"
+              class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-pine-900 hover:bg-pine-800 text-white text-xs sm:text-sm font-semibold shadow-sm transition shrink-0"
+            >
+              <span>＋</span>
+              <span>Ajouter un membre</span>
+            </button>
+          </div>
+
+          <div id="admin-members-list" class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            <!-- Populated dynamically by app.js -->
+          </div>
+        </div>
+
+        <!-- Admin Section 2: Reservations & Gifts Management (Anti-Spoiler preserved!) -->
+        <div class="bg-white rounded-2xl border border-pine-900/10 p-5 shadow-sm space-y-4">
+          <div class="pb-3 border-b border-gray-100">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h2 class="font-serif-festive text-xl font-bold text-pine-900 flex items-center gap-2">
+                <span>🎁</span>
+                <span>Gestion des réservations & cadeaux (Anti-Spoiler préservé)</span>
+              </h2>
+              <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-gold-100 text-pine-900">
+                🤫 Tes propres cadeaux sont masqués/protégés
+              </span>
+            </div>
+            <p class="text-xs sm:text-sm text-gray-600 mt-1">
+              Débloque une réservation faite par erreur ou modifie un souhait d'un autre membre sans jamais divulguer qui a réservé tes propres cadeaux.
+            </p>
+          </div>
+
+          <div id="admin-gifts-list" class="divide-y divide-gray-100">
+            <!-- Populated dynamically by app.js -->
+          </div>
+        </div>
+
+        <!-- Admin Section 3: Database Configuration (Supabase / Demo) -->
+        <div class="bg-white rounded-2xl border border-pine-900/10 p-5 shadow-sm space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-gray-100">
+            <div>
+              <h2 class="font-serif-festive text-xl font-bold text-pine-900 flex items-center gap-2">
+                <span>🗄️</span>
+                <span>Configuration Base de données (Supabase / Démo)</span>
+              </h2>
+              <p class="text-xs sm:text-sm text-gray-600 mt-0.5">
+                Connecte l'application à ton projet Supabase gratuit ou utilise le mode Démo local.
+              </p>
+            </div>
+            <span id="admin-db-mode-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-pine-100 text-pine-900">
+              Mode Démo Local
+            </span>
+          </div>
+
+          <form id="form-supabase-config" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label for="input-supabase-url" class="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">
+                  Supabase Project URL
+                </label>
+                <input
+                  id="input-supabase-url"
+                  type="url"
+                  placeholder="https://xxxxxxxxxxxx.supabase.co"
+                  class="w-full rounded-xl border border-gray-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pine-900"
+                />
+              </div>
+              <div>
+                <label for="input-supabase-key" class="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">
+                  Supabase Anon Public Key
+                </label>
+                <input
+                  id="input-supabase-key"
+                  type="text"
+                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  class="w-full rounded-xl border border-gray-300 px-3.5 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-pine-900"
+                />
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <button
+                  type="submit"
+                  class="px-4 py-2.5 rounded-xl bg-pine-900 hover:bg-pine-800 text-white text-xs sm:text-sm font-semibold transition"
+                >
+                  💾 Enregistrer la connexion Supabase
+                </button>
+                <button
+                  id="btn-disconnect-supabase"
+                  type="button"
+                  class="px-3.5 py-2.5 rounded-xl border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs sm:text-sm font-medium transition"
+                >
+                  Basculer en Mode Démo
+                </button>
+              </div>
+
+              <button
+                id="btn-reset-demo-data"
+                type="button"
+                class="px-4 py-2.5 rounded-xl bg-cranberry-50 hover:bg-cranberry-100 text-cranberry-700 border border-cranberry-500/20 text-xs sm:text-sm font-semibold transition"
+              >
+                🔄 Réinitialiser les données de démo
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ===================================================== -->
+  <!-- MOBILE BOTTOM NAVIGATION BAR                          -->
+  <!-- ===================================================== -->
+  <nav id="mobile-bottom-nav" class="mobile-bottom-nav fixed bottom-0 inset-x-0 z-40 md:hidden hidden">
+    <div id="mobile-nav-grid" class="grid grid-cols-3 h-16 max-w-lg mx-auto">
+      <button type="button" data-tab="family" class="mobile-nav-btn active flex flex-col items-center justify-center gap-0.5 text-xs">
+        <span class="text-lg leading-none">🎄</span>
+        <span>La Famille</span>
+      </button>
+      <button type="button" data-tab="mylist" class="mobile-nav-btn flex flex-col items-center justify-center gap-0.5 text-xs">
+        <div class="relative">
+          <span class="text-lg leading-none">🎁</span>
+          <span id="mobile-badge-mylist" class="hidden -top-1 -right-3 absolute px-1.5 py-0.2 text-[10px] rounded-full bg-pine-900 text-white font-bold">0</span>
+        </div>
+        <span>Ma Liste</span>
+      </button>
+      <button type="button" data-tab="mypurchases" class="mobile-nav-btn flex flex-col items-center justify-center gap-0.5 text-xs">
+        <div class="relative">
+          <span class="text-lg leading-none">🛍️</span>
+          <span id="mobile-badge-mypurchases" class="hidden -top-1 -right-3 absolute px-1.5 py-0.2 text-[10px] rounded-full bg-cranberry-600 text-white font-bold">0</span>
+        </div>
+        <span>Mes Achats</span>
+      </button>
+      <button type="button" data-tab="admin" id="mobile-tab-admin" class="hidden mobile-nav-btn flex-col items-center justify-center gap-0.5 text-xs">
+        <span class="text-lg leading-none">⚙️</span>
+        <span>Admin</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ===================================================== -->
+  <!-- MODAL 1: ADD / EDIT GIFT                              -->
+  <!-- ===================================================== -->
+  <div id="modal-gift" class="hidden fixed inset-0 z-50 modal-backdrop flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="modal-panel bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl border border-pine-900/10 overflow-y-auto">
+      <div class="sticky top-0 bg-white/95 backdrop-blur-md px-5 py-4 border-b border-gray-100 flex items-center justify-between z-10">
+        <h3 id="modal-gift-title" class="font-serif-festive text-lg sm:text-xl font-bold text-pine-900">
+          🎁 Ajouter un souhait
+        </h3>
+        <button type="button" data-close-modal="modal-gift" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 text-sm">
+          ✕
+        </button>
+      </div>
+
+      <form id="form-gift" class="p-5 space-y-4">
+        <input type="hidden" id="gift-id" />
+        <input type="hidden" id="gift-owner-id" />
+
+        <!-- Title -->
+        <div>
+          <label for="gift-title-input" class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+            Titre du cadeau <span class="text-cranberry-600">*</span>
+          </label>
+          <input
+            id="gift-title-input"
+            type="text"
+            required
+            placeholder="Ex: Pull en laine mérinos vert sapin"
+            class="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pine-900"
+          />
+        </div>
+
+        <!-- Price & External URL -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label for="gift-price-input" class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+              Prix indicatif (€)
+            </label>
+            <input
+              id="gift-price-input"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="Ex: 45"
+              class="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pine-900"
+            />
+          </div>
+          <div class="sm:col-span-2">
+            <label for="gift-link-input" class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+              Lien URL (boutique)
+            </label>
+            <input
+              id="gift-link-input"
+              type="url"
+              placeholder="https://www.boutique.fr/..."
+              class="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pine-900"
+            />
+          </div>
+        </div>
+
+        <!-- Image / Photo Dual Option -->
+        <div class="bg-cream-50 rounded-2xl p-3.5 border border-cream-200 space-y-3">
+          <div class="flex items-center justify-between">
+            <label class="block text-xs font-bold uppercase tracking-wider text-pine-900">
+              Image / Photo du cadeau
+            </label>
+            <div class="inline-flex rounded-lg bg-white p-0.5 border border-gray-200 text-xs">
+              <button
+                type="button"
+                id="tab-img-url"
+                class="px-2.5 py-1 rounded-md font-semibold bg-pine-900 text-white transition"
+              >
+                🔗 Lien URL
+              </button>
+              <button
+                type="button"
+                id="tab-img-upload"
+                class="px-2.5 py-1 rounded-md font-semibold text-gray-600 hover:text-pine-900 transition"
+              >
+                📷 Photo (Téléphone/PC)
+              </button>
+            </div>
+          </div>
+
+          <!-- Option 1: Paste Image URL -->
+          <div id="panel-img-url">
+            <input
+              id="gift-image-url-input"
+              type="url"
+              placeholder="https://images.unsplash.com/..."
+              class="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pine-900"
+            />
+            <p class="text-[11px] text-gray-500 mt-1">
+              Astuce : clic droit sur l'image d'un site marchand → « Copier l'adresse de l'image ».
+            </p>
+          </div>
+
+          <!-- Option 2: File Upload -->
+          <div id="panel-img-upload" class="hidden">
+            <label
+              for="gift-image-file-input"
+              class="flex flex-col items-center justify-center border-2 border-dashed border-pine-900/25 rounded-xl bg-white p-4 text-center cursor-pointer hover:border-pine-900/50 transition"
+            >
+              <span class="text-2xl mb-1">📸</span>
+              <span class="text-xs font-semibold text-pine-900">Choisir une photo ou prendre en photo</span>
+              <span class="text-[11px] text-gray-500 mt-0.5">Compression automatique rapide</span>
+              <input id="gift-image-file-input" type="file" accept="image/*" class="hidden" />
+            </label>
+          </div>
+
+          <!-- Live Image Preview -->
+          <div id="gift-image-preview-wrapper" class="hidden relative rounded-xl overflow-hidden border border-gray-200 bg-white h-36">
+            <img id="gift-image-preview" src="" alt="Aperçu du cadeau" class="w-full h-full object-contain" />
+            <button
+              type="button"
+              id="btn-clear-gift-image"
+              class="absolute top-2 right-2 px-2.5 py-1 rounded-lg bg-black/70 hover:bg-black text-white text-xs font-semibold"
+            >
+              Supprimer l'image
+            </button>
+          </div>
+        </div>
+
+        <!-- Description / Notes -->
+        <div>
+          <label for="gift-desc-input" class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+            Description / Notes (taille, couleur, détails…)
+          </label>
+          <textarea
+            id="gift-desc-input"
+            rows="3"
+            placeholder="Ex: Taille M, coloris Vert Sapin ou Beige. Disponible aussi en magasin."
+            class="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pine-900"
+          ></textarea>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center justify-end gap-2.5 pt-2 border-t border-gray-100">
+          <button
+            type="button"
+            data-close-modal="modal-gift"
+            class="px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-semibold transition"
+          >
+            Annuler
+          </button>
+          <button
+            type="submit"
+            id="btn-submit-gift"
+            class="px-5 py-2.5 rounded-xl bg-cranberry-600 hover:bg-cranberry-500 text-white text-sm font-semibold shadow-md transition"
+          >
+            Enregistrer ce souhait
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================================================== -->
+  <!-- MODAL 2: DELETE GIFT CONFIRMATION (CRITICAL RULE)     -->
+  <!-- ===================================================== -->
+  <div id="modal-delete-gift" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+    <div class="modal-panel bg-white w-full max-w-md rounded-3xl shadow-2xl border border-cranberry-500/20 overflow-hidden p-6 text-center space-y-4">
+      <div class="w-14 h-14 rounded-2xl bg-cranberry-50 border border-cranberry-500/20 text-cranberry-600 flex items-center justify-center text-3xl mx-auto">
+        ⚠️
+      </div>
+
+      <h3 class="font-serif-festive text-xl font-bold text-pine-900">
+        Supprimer ce souhait ?
+      </h3>
+
+      <p id="delete-gift-name-display" class="text-sm font-semibold text-gray-800 bg-cream-50 py-2 px-3 rounded-xl border border-cream-200"></p>
+
+      <!-- Critical Mandatory Warning -->
+      <div class="bg-amber-50 border-2 border-amber-400/80 rounded-2xl p-4 text-left shadow-sm">
+        <p class="text-sm font-bold text-amber-950 leading-snug">
+          ⚠️ Attention, pense à prévenir la famille que tu as supprimé ça, il est peut-être déjà réservé !
+        </p>
+      </div>
+
+      <div class="flex flex-col-reverse sm:flex-row items-center justify-center gap-2.5 pt-2">
+        <button
+          type="button"
+          data-close-modal="modal-delete-gift"
+          class="w-full sm:w-auto flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-semibold transition"
+        >
+          Annuler
+        </button>
+        <button
+          type="button"
+          id="btn-confirm-delete-gift"
+          class="w-full sm:w-auto flex-1 px-4 py-2.5 rounded-xl bg-cranberry-600 hover:bg-cranberry-700 text-white text-sm font-semibold shadow-md transition"
+        >
+          Oui, supprimer ce souhait
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================== -->
+  <!-- MODAL 3: ADD / EDIT FAMILY MEMBER (ADMIN)             -->
+  <!-- ===================================================== -->
+  <div id="modal-member" class="hidden fixed inset-0 z-50 modal-backdrop flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="modal-panel bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl border border-pine-900/10 overflow-y-auto">
+      <div class="sticky top-0 bg-white px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <h3 id="modal-member-title" class="font-serif-festive text-lg font-bold text-pine-900">
+          👤 Ajouter un membre
+        </h3>
+        <button type="button" data-close-modal="modal-member" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 text-sm">
+          ✕
+        </button>
+      </div>
+
+      <form id="form-member" class="p-5 space-y-4">
+        <input type="hidden" id="member-id" />
+
+        <div>
+          <label for="member-name-input" class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+            Prénom / Nom <span class="text-cranberry-600">*</span>
+          </label>
+          <input
+            id="member-name-input"
+            type="text"
+            required
+            placeholder="Ex: Marie"
+            class="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pine-900"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+            Avatar Emoji
+          </label>
+          <div class="flex items-center gap-2 mb-2">
+            <input
+              id="member-avatar-input"
+              type="text"
+              value="🎅"
+              maxlength="4"
+              class="w-16 text-center text-xl rounded-xl border border-gray-300 py-2 focus:outline-none focus:ring-2 focus:ring-pine-900"
+            />
+            <div id="emoji-presets" class="flex flex-wrap gap-1.5">
+              <button type="button" data-emoji="🎄" class="w-8 h-8 rounded-lg bg-cream-50 hover:bg-cream-100 flex items-center justify-center text-base">🎄</button>
+              <button type="button" data-emoji="🎅" class="w-8 h-8 rounded-lg bg-cream-50 hover:bg-cream-100 flex items-center justify-center text-base">🎅</button>
+              <button type="button" data-emoji="🤶" class="w-8 h-8 rounded-lg bg-cream-50 hover:bg-cream-100 flex items-center justify-center text-base">🤶</button>
+              <button type="button" data-emoji="🦌" class="w-8 h-8 rounded-lg bg-cream-50 hover:bg-cream-100 flex items-center justify-center text-base">🦌</button>
+              <button type="button" data-emoji="⛄" class="w-8 h-8 rounded-lg bg-cream-50 hover:bg-cream-100 flex items-center justify-center text-base">⛄</button>
+              <button type="button" data-emoji="🌟" class="w-8 h-8 rounded-lg bg-cream-50 hover:bg-cream-100 flex items-center justify-center text-base">🌟</button>
+              <button type="button" data-emoji="🎁" class="w-8 h-8 rounded-lg bg-cream-50 hover:bg-cream-100 flex items-center justify-center text-base">🎁</button>
+              <button type="button" data-emoji="🍪" class="w-8 h-8 rounded-lg bg-cream-50 hover:bg-cream-100 flex items-center justify-center text-base">🍪</button>
+              <button type="button" data-emoji="🦊" class="w-8 h-8 rounded-lg bg-cream-50 hover:bg-cream-100 flex items-center justify-center text-base">🦊</button>
+              <button type="button" data-emoji="🧸" class="w-8 h-8 rounded-lg bg-cream-50 hover:bg-cream-100 flex items-center justify-center text-base">🧸</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Token Field -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label for="member-token-input" class="block text-xs font-bold uppercase tracking-wider text-gray-700">
+              Token du lien magique
+            </label>
+            <button
+              type="button"
+              id="btn-regenerate-token"
+              class="text-xs font-semibold text-pine-800 hover:underline"
+            >
+              🔄 Régénérer
+            </button>
+          </div>
+          <input
+            id="member-token-input"
+            type="text"
+            placeholder="Auto-généré si laissé vide"
+            class="w-full rounded-xl border border-gray-300 bg-gray-50 px-3.5 py-2 text-xs font-mono focus:bg-white focus:outline-none focus:ring-2 focus:ring-pine-900"
+          />
+        </div>
+
+        <!-- Admin Role Checkbox -->
+        <label class="flex items-center gap-3 p-3 rounded-xl bg-cream-50 border border-cream-200 cursor-pointer">
+          <input
+            id="member-admin-checkbox"
+            type="checkbox"
+            class="w-4 h-4 rounded text-pine-900 focus:ring-pine-900"
+          />
+          <div class="text-xs">
+            <div class="font-bold text-pine-900">Administrateur de la famille</div>
+            <div class="text-gray-600">Peut gérer les membres, partager les liens et débloquer les réservations.</div>
+          </div>
+        </label>
+
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+          <button
+            type="button"
+            data-close-modal="modal-member"
+            class="px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-semibold"
+          >
+            Annuler
+          </button>
+          <button
+            type="submit"
+            class="px-5 py-2.5 rounded-xl bg-pine-900 hover:bg-pine-800 text-white text-sm font-semibold shadow-md"
+          >
+            Enregistrer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Scripts: Supabase CDN first, then config.js, db.js, app.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
