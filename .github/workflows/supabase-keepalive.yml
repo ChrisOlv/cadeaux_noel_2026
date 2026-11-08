@@ -13,8 +13,8 @@ jobs:
     steps:
       - name: Ping Supabase REST API
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://gktyfhuavcjrlyeilbde.supabase.co' }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || 'sb_publishable_cwnKNGLJLXpZ3a9oBOg4qw_yspPshum' }}
         run: |
           if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
             echo "ℹ️ Secrets SUPABASE_URL ou SUPABASE_ANON_KEY non configurés dans GitHub. Ignoré proprement."

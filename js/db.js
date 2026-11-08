@@ -258,6 +258,13 @@
     }
   }
 
+  function sanitizeSupabaseUrl(rawUrl) {
+    return String(rawUrl || '')
+      .trim()
+      .replace(/\/rest\/v1\/?$/i, '')
+      .replace(/\/+$/, '');
+  }
+
   function resolveSupabaseCredentials() {
     let url = '';
     let anonKey = '';
@@ -268,7 +275,7 @@
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed.url === 'string' && typeof parsed.anonKey === 'string') {
-          url = parsed.url.trim();
+          url = sanitizeSupabaseUrl(parsed.url);
           anonKey = parsed.anonKey.trim();
         }
       }
@@ -278,7 +285,7 @@
 
     // 2. Sinon vérifier window.APP_CONFIG
     if ((!url || !anonKey) && window.APP_CONFIG) {
-      const cfgUrl = (window.APP_CONFIG.SUPABASE_URL || '').trim();
+      const cfgUrl = sanitizeSupabaseUrl(window.APP_CONFIG.SUPABASE_URL || '');
       const cfgKey = (window.APP_CONFIG.SUPABASE_ANON_KEY || '').trim();
       if (cfgUrl && cfgKey) {
         url = cfgUrl;

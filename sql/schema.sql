@@ -110,10 +110,10 @@ CREATE POLICY "Allow anon delete gifts"
 
 INSERT INTO public.members (name, avatar, token, is_admin)
 VALUES
-    ('Chris',  '🎄', 'chris-admin-2026', TRUE),
-    ('Marie',  '🤶', 'marie-noel-2026',  FALSE),
-    ('Thomas', '🦌', 'thomas-noel-2026', FALSE),
-    ('Sophie', '⛄', 'sophie-noel-2026', FALSE),
-    ('Lucas',  '🎁', 'lucas-noel-2026',  FALSE),
-    ('Julie',  '🌟', 'julie-noel-2026',  FALSE)
+    ('Chris',  '🎄', 'chris-'  || substr(md5(random()::text), 1, 6), TRUE),
+    ('Marie',  '🤶', 'marie-'  || substr(md5(random()::text), 1, 6), FALSE),
+    ('Thomas', '🦌', 'thomas-' || substr(md5(random()::text), 1, 6), FALSE),
+    ('Sophie', '⛄', 'sophie-' || substr(md5(random()::text), 1, 6), FALSE),
+    ('Lucas',  '🎁', 'lucas-'  || substr(md5(random()::text), 1, 6), FALSE),
+    ('Julie',  '🌟', 'julie-'  || substr(md5(random()::text), 1, 6), FALSE)
 ON CONFLICT (token) DO NOTHING;
