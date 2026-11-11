@@ -18,11 +18,20 @@ CREATE TABLE IF NOT EXISTS public.members (
     avatar TEXT DEFAULT '🎅',
     token TEXT UNIQUE NOT NULL,
     is_admin BOOLEAN DEFAULT FALSE,
+    can_add_gifts BOOLEAN DEFAULT TRUE,
+    hidden_member_ids UUID[] DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Migration douce si la table existe déjà en production
+ALTER TABLE public.members
+    ADD COLUMN IF NOT EXISTS can_add_gifts BOOLEAN DEFAULT TRUE,
+    ADD COLUMN IF NOT EXISTS hidden_member_ids UUID[] DEFAULT '{}';
+
 COMMENT ON TABLE public.members IS 'Membres de la famille participant à Noël 2026, authentifiés par magic link (token).';
 COMMENT ON COLUMN public.members.token IS 'Jeton unique utilisé dans l''URL (?token=...) pour identifier le membre.';
+COMMENT ON COLUMN public.members.can_add_gifts IS 'Autorise ou non ce membre à ajouter des souhaits de cadeaux.';
+COMMENT ON COLUMN public.members.hidden_member_ids IS 'Liste des UUID des membres dont les cadeaux sont masqués pour cet utilisateur.';
 
 -- -----------------------------------------------------------------------------
 -- 2. Table `gifts` (Idées de cadeaux & réservations)

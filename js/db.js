@@ -269,12 +269,31 @@
     let url = '';
     let anonKey = '';
 
-    // 1. Vérifier localStorage en priorité (configuration saisie via l'interface Admin)
+    // 0. Permettre de forcer le mode Démo via ?demo=1 dans l'URL
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('demo') === '1') {
+        return { url: '', anonKey: '' };
+      }
+    } catch (e) {
+      // Ignorer
+    }
+
+    // 1. Vérifier localStorage (sauf si APP_ENV === 'dev' où APP_CONFIG de test est prioritaire)
+    const isDevConfig = Boolean(window.APP_CONFIG && window.APP_CONFIG.APP_ENV === 'dev');
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.SUPABASE_CONFIG);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed.url === 'string' && typeof parsed.anonKey === 'string') {
+        if (parsed && parsed.forceDemo === true) {
+          return { url: '', anonKey: '' };
+        }
+        if (
+          !isDevConfig &&
+          parsed &&
+          typeof parsed.url === 'string' &&
+          typeof parsed.anonKey === 'string'
+        ) {
           url = sanitizeSupabaseUrl(parsed.url);
           anonKey = parsed.anonKey.trim();
         }
@@ -294,6 +313,37 @@
     }
 
     return { url, anonKey };
+  }
+
+  const NO_WISHLIST_SENTINEL_UUID = '00000000-0000-0000-0000-000000000000';
+
+  function normalizeMember(member) {
+    if (!member) return null;
+    const rawHidden = Array.isArray(member.hidden_member_ids)
+      ? member.hidden_member_ids.map(String)
+      : [];
+    const hasNoWishlistSentinel = rawHidden.includes(NO_WISHLIST_SENTINEL_UUID);
+    const canAddGifts =
+      member.can_add_gifts !== undefined
+        ? Boolean(member.can_add_gifts) && !hasNoWishlistSentinel
+        : !hasNoWishlistSentinel;
+    const cleanHidden = rawHidden.filter((id) => id !== NO_WISHLIST_SENTINEL_UUID);
+
+    return {
+      ...member,
+      can_add_gifts: canAddGifts,
+      hidden_member_ids: cleanHidden
+    };
+  }
+
+  function encodeStoredHiddenIds(hiddenMemberIds, canAddGifts) {
+    const clean = (Array.isArray(hiddenMemberIds) ? hiddenMemberIds : [])
+      .map(String)
+      .filter((id) => id && id !== NO_WISHLIST_SENTINEL_UUID);
+    if (canAddGifts === false) {
+      clean.push(NO_WISHLIST_SENTINEL_UUID);
+    }
+    return clean;
   }
 
   function normalizePrice(price) {
@@ -440,7 +490,10 @@
           JSON.stringify({ url: cleanUrl, anonKey: cleanKey })
         );
       } else {
-        localStorage.removeItem(STORAGE_KEYS.SUPABASE_CONFIG);
+        localStorage.setItem(
+          STORAGE_KEYS.SUPABASE_CONFIG,
+          JSON.stringify({ forceDemo: true })
+        );
       }
 
       return await this.init();
@@ -494,7 +547,7 @@
       if (_mode === 'supabase' && _supabase) {
         const { data, error } = await _supabase
           .from('members')
-          .select('id, name, avatar, token, is_admin, created_at')
+          .select('*')
           .ilike('token', cleanToken)
           .maybeSingle();
 
@@ -502,7 +555,7 @@
           console.error('Erreur Supabase getMemberByToken:', error);
           throw new Error(error.message || 'Impossible de vérifier le code secret.');
         }
-        return data || null;
+        return data ? normalizeMember(data) : null;
       }
 
       ensureDemoSeeded();
@@ -510,7 +563,7 @@
       const found = members.find(
         (m) => String(m.token || '').trim().toLowerCase() === cleanToken
       );
-      return found ? { ...found } : null;
+      return found ? normalizeMember(found) : null;
     },
 
     /**
@@ -520,14 +573,14 @@
       if (_mode === 'supabase' && _supabase) {
         const { data, error } = await _supabase
           .from('members')
-          .select('id, name, avatar, token, is_admin, created_at')
+          .select('*')
           .order('created_at', { ascending: true });
 
         if (error) {
           console.error('Erreur Supabase getMembers:', error);
           throw new Error(error.message || 'Impossible de charger les membres.');
         }
-        return data || [];
+        return (data || []).map(normalizeMember);
       }
 
       ensureDemoSeeded();
@@ -540,18 +593,20 @@
           if (tA !== tB) return tA - tB;
           return String(a.name).localeCompare(String(b.name), 'fr');
         })
-        .map((m) => ({ ...m }));
+        .map((m) => normalizeMember(m));
     },
 
     /**
      * Crée un nouveau membre
      */
-    async createMember({ name, avatar = '🎁', is_admin = false, customToken = null, token = null } = {}) {
+    async createMember({ name, avatar = '🎁', is_admin = false, can_add_gifts = true, hidden_member_ids = [], customToken = null, token = null } = {}) {
       const cleanName = String(name || '').trim();
       if (!cleanName) {
         throw new Error('Le prénom du membre est obligatoire.');
       }
       const cleanAvatar = String(avatar || '🎁').trim() || '🎁';
+      const canAddGifts = can_add_gifts !== false;
+      const storedHiddenIds = encodeStoredHiddenIds(hidden_member_ids, canAddGifts);
       const rawToken = customToken || token;
       const finalToken = rawToken && String(rawToken).trim()
         ? String(rawToken)
@@ -563,17 +618,20 @@
         : this.generateToken(cleanName);
 
       if (_mode === 'supabase' && _supabase) {
+        const rowPayload = {
+          name: cleanName,
+          avatar: cleanAvatar,
+          token: finalToken,
+          is_admin: Boolean(is_admin)
+        };
+        if (storedHiddenIds.length > 0) {
+          rowPayload.hidden_member_ids = storedHiddenIds;
+        }
+
         const { data, error } = await _supabase
           .from('members')
-          .insert([
-            {
-              name: cleanName,
-              avatar: cleanAvatar,
-              token: finalToken,
-              is_admin: Boolean(is_admin)
-            }
-          ])
-          .select('id, name, avatar, token, is_admin, created_at')
+          .insert([rowPayload])
+          .select('*')
           .single();
 
         if (error) {
@@ -581,9 +639,14 @@
           if (error.code === '23505') {
             throw new Error('Ce code secret est déjà utilisé par un autre membre.');
           }
+          if (error.message && error.message.includes('hidden_member_ids')) {
+            throw new Error(
+              "La colonne 'hidden_member_ids' manque dans Supabase. Exécutez : ALTER TABLE public.members ADD COLUMN IF NOT EXISTS hidden_member_ids UUID[] DEFAULT '{}';"
+            );
+          }
           throw new Error(error.message || 'Impossible de créer le membre.');
         }
-        return data;
+        return normalizeMember(data);
       }
 
       ensureDemoSeeded();
@@ -601,17 +664,19 @@
         avatar: cleanAvatar,
         token: finalToken,
         is_admin: Boolean(is_admin),
+        can_add_gifts: canAddGifts,
+        hidden_member_ids: storedHiddenIds,
         created_at: new Date().toISOString()
       };
       members.push(newMember);
       writeDemoMembers(members);
-      return { ...newMember };
+      return normalizeMember(newMember);
     },
 
     /**
      * Met à jour un membre existant
      */
-    async updateMember(id, { name, avatar, is_admin, regenerateToken = false, customToken = null } = {}) {
+    async updateMember(id, { name, avatar, is_admin, can_add_gifts, hidden_member_ids, regenerateToken = false, customToken = null } = {}) {
       if (!id) {
         throw new Error('Identifiant de membre manquant.');
       }
@@ -629,6 +694,25 @@
         if (is_admin !== undefined) {
           updates.is_admin = Boolean(is_admin);
         }
+        if (hidden_member_ids !== undefined || can_add_gifts !== undefined) {
+          let baseHidden = hidden_member_ids;
+          let baseCanAdd = can_add_gifts;
+          if (baseHidden === undefined || baseCanAdd === undefined) {
+            const { data: currentRow } = await _supabase
+              .from('members')
+              .select('*')
+              .eq('id', id)
+              .maybeSingle();
+            const normalizedCurrent = normalizeMember(currentRow || {});
+            if (baseHidden === undefined) {
+              baseHidden = normalizedCurrent.hidden_member_ids;
+            }
+            if (baseCanAdd === undefined) {
+              baseCanAdd = normalizedCurrent.can_add_gifts;
+            }
+          }
+          updates.hidden_member_ids = encodeStoredHiddenIds(baseHidden, baseCanAdd !== false);
+        }
         if (customToken && String(customToken).trim()) {
           updates.token = String(customToken)
             .normalize('NFD')
@@ -644,14 +728,32 @@
           .from('members')
           .update(updates)
           .eq('id', id)
-          .select('id, name, avatar, token, is_admin, created_at')
+          .select('*')
           .single();
 
         if (error) {
           console.error('Erreur Supabase updateMember:', error);
+          if (error.message && error.message.includes('hidden_member_ids')) {
+            if (!updates.hidden_member_ids || updates.hidden_member_ids.length === 0) {
+              const fallbackUpdates = { ...updates };
+              delete fallbackUpdates.hidden_member_ids;
+              const { data: retryData, error: retryError } = await _supabase
+                .from('members')
+                .update(fallbackUpdates)
+                .eq('id', id)
+                .select('*')
+                .single();
+              if (!retryError) {
+                return normalizeMember(retryData);
+              }
+            }
+            throw new Error(
+              "La colonne 'hidden_member_ids' manque dans Supabase. Exécutez : ALTER TABLE public.members ADD COLUMN IF NOT EXISTS hidden_member_ids UUID[] DEFAULT '{}';"
+            );
+          }
           throw new Error(error.message || 'Impossible de mettre à jour le membre.');
         }
-        return data;
+        return normalizeMember(data);
       }
 
       ensureDemoSeeded();
@@ -661,7 +763,7 @@
         throw new Error('Membre introuvable.');
       }
 
-      const current = { ...members[idx] };
+      const current = normalizeMember(members[idx]);
       if (name !== undefined) {
         const cleanName = String(name).trim();
         if (!cleanName) throw new Error('Le prénom ne peut pas être vide.');
@@ -673,6 +775,11 @@
       if (is_admin !== undefined) {
         current.is_admin = Boolean(is_admin);
       }
+      const nextCanAdd = can_add_gifts !== undefined ? Boolean(can_add_gifts) : current.can_add_gifts;
+      const nextHidden = hidden_member_ids !== undefined ? hidden_member_ids : current.hidden_member_ids;
+      current.can_add_gifts = nextCanAdd;
+      current.hidden_member_ids = encodeStoredHiddenIds(nextHidden, nextCanAdd);
+
       if (customToken && String(customToken).trim()) {
         const cleanCustom = String(customToken)
           .normalize('NFD')
@@ -693,7 +800,7 @@
 
       members[idx] = current;
       writeDemoMembers(members);
-      return { ...current };
+      return normalizeMember(current);
     },
 
     /**

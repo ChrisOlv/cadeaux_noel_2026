@@ -136,7 +136,7 @@
           <span>La Famille</span>
           <span id="nav-badge-family" class="px-2 py-0.5 text-xs rounded-full bg-pine-100 text-pine-900 font-bold">0</span>
         </button>
-        <button type="button" data-tab="mylist" class="desktop-tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-white/90 hover:bg-white/10 flex items-center gap-2">
+        <button type="button" data-tab="mylist" id="desktop-tab-mylist" class="desktop-tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-white/90 hover:bg-white/10 flex items-center gap-2">
           <span>🎁</span>
           <span>Ma Liste</span>
           <span id="nav-badge-mylist" class="px-2 py-0.5 text-xs rounded-full bg-white/20 text-white font-bold">0</span>
@@ -549,7 +549,7 @@
         <span class="text-lg leading-none">🎄</span>
         <span>La Famille</span>
       </button>
-      <button type="button" data-tab="mylist" class="mobile-nav-btn flex flex-col items-center justify-center gap-0.5 text-xs">
+      <button type="button" data-tab="mylist" id="mobile-tab-mylist" class="mobile-nav-btn flex flex-col items-center justify-center gap-0.5 text-xs">
         <div class="relative">
           <span class="text-lg leading-none">🎁</span>
           <span id="mobile-badge-mylist" class="hidden -top-1 -right-3 absolute px-1.5 py-0.2 text-[10px] rounded-full bg-pine-900 text-white font-bold">0</span>
@@ -859,6 +859,44 @@
             <div class="text-gray-600">Peut gérer les membres, partager les liens et débloquer les réservations.</div>
           </div>
         </label>
+
+        <!-- Can Add Gifts Checkbox -->
+        <label class="flex items-center gap-3 p-3 rounded-xl bg-cream-50 border border-cream-200 cursor-pointer">
+          <input
+            id="member-can-add-gifts-checkbox"
+            type="checkbox"
+            checked
+            class="w-4 h-4 rounded text-pine-900 focus:ring-pine-900"
+          />
+          <div class="text-xs">
+            <div class="font-bold text-pine-900">Peut ajouter des cadeaux (avoir sa liste)</div>
+            <div class="text-gray-600">Décoche si ce membre participe uniquement pour offrir (sans liste de souhaits personnelle).</div>
+          </div>
+        </label>
+
+        <!-- Visibilité des autres membres -->
+        <div id="member-visibility-section" class="space-y-2 pt-3 border-t border-gray-100">
+          <div class="flex items-center justify-between">
+            <label class="block text-xs font-bold uppercase tracking-wider text-gray-700">
+              👁️ Membres visibles dans « La Famille »
+            </label>
+            <div class="flex items-center gap-2 text-[11px]">
+              <button type="button" id="btn-visibility-all" class="font-semibold text-pine-800 hover:underline">
+                Tout cocher
+              </button>
+              <span class="text-gray-300">•</span>
+              <button type="button" id="btn-visibility-none" class="font-semibold text-cranberry-600 hover:underline">
+                Tout décocher
+              </button>
+            </div>
+          </div>
+          <p class="text-[11px] text-gray-500">
+            Décoche les membres que cette personne ne doit pas voir (ex: ne laisser coché que Christophe pour André).
+          </p>
+          <div id="member-visibility-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto p-1">
+            <!-- Populated by app.js -->
+          </div>
+        </div>
 
         <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
           <button

@@ -46,8 +46,32 @@
   }
 
   function buildMagicLink(token) {
-    const baseUrl = `${window.location.origin}${window.location.pathname}`;
+    const baseUrl =
+      window.location.origin && window.location.origin !== 'null'
+        ? `${window.location.origin}${window.location.pathname}`
+        : window.location.href.split('?')[0];
     return `${baseUrl}?token=${encodeURIComponent(token)}`;
+  }
+
+  function isDevEnv() {
+    return Boolean(window.APP_CONFIG && window.APP_CONFIG.APP_ENV === 'dev');
+  }
+
+  function getHiddenMemberIds(user) {
+    if (!user || !Array.isArray(user.hidden_member_ids)) return new Set();
+    return new Set(user.hidden_member_ids.map((id) => String(id)));
+  }
+
+  function canMemberAddGifts(member) {
+    return !member || member.can_add_gifts !== false;
+  }
+
+  function isOwnerVisibleToUser(ownerId, user) {
+    if (!user) return true;
+    // Un membre voit toujours ses propres souhaits
+    if (String(ownerId) === String(user.id)) return true;
+    const hiddenSet = getHiddenMemberIds(user);
+    return !hiddenSet.has(String(ownerId));
   }
 
   async function copyToClipboard(text, successMessage = 'Lien copié dans le presse-papiers !') {
@@ -142,10 +166,15 @@
       }
     }
 
-    // En mode Démo, si aucun token n'est fourni à la première visite,
+    // En mode Démo ou DEV, si aucun token valide n'est fourni à la première visite,
     // sélectionner le premier membre (Chris Admin) pour offrir un aperçu immédiat
     // tout en laissant la bannière de changement rapide en haut !
-    if (!resolvedMember && !urlToken && state.mode === 'demo' && state.members.length > 0) {
+    if (
+      !resolvedMember &&
+      !urlToken &&
+      (state.mode === 'demo' || isDevEnv()) &&
+      state.members.length > 0
+    ) {
       resolvedMember = state.members[0];
     }
 
@@ -164,14 +193,22 @@
     localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, member.token);
 
     if (updateUrl) {
-      const cleanUrl = `${window.location.pathname}?token=${encodeURIComponent(member.token)}`;
-      window.history.replaceState({}, '', cleanUrl);
+      try {
+        const cleanUrl = `${window.location.pathname}?token=${encodeURIComponent(member.token)}`;
+        window.history.replaceState({}, '', cleanUrl);
+      } catch (e) {
+        // Ignorer sous file:// si le navigateur refuse replaceState
+      }
     }
 
     state.gifts = await window.GiftDB.getGifts(member.id);
 
     // Si l'utilisateur n'est pas admin et était sur l'onglet admin, revenir sur 'family'
     if (state.activeTab === 'admin' && !member.is_admin) {
+      state.activeTab = 'family';
+    }
+    // Si l'utilisateur ne peut pas ajouter de cadeaux et était sur 'mylist', revenir sur 'family'
+    if (state.activeTab === 'mylist' && !canMemberAddGifts(member)) {
       state.activeTab = 'family';
     }
 
@@ -185,6 +222,9 @@
       if (updatedMe) {
         state.currentUser = updatedMe;
         localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, updatedMe.token);
+      }
+      if (state.activeTab === 'mylist' && !canMemberAddGifts(state.currentUser)) {
+        state.activeTab = 'family';
       }
       state.gifts = await window.GiftDB.getGifts(state.currentUser.id);
     }
@@ -234,15 +274,20 @@
     if (!banner || !membersContainer) return;
 
     if (state.mode === 'supabase') {
-      modeBadge.innerHTML = '🟢 Connecté à Supabase';
-      modeBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30';
+      if (isDevEnv()) {
+        modeBadge.innerHTML = '🧪 Supabase TEST (DEV)';
+        modeBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-400/30';
+      } else {
+        modeBadge.innerHTML = '🟢 Connecté à Supabase';
+        modeBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30';
+      }
     } else {
       modeBadge.innerHTML = '✨ Mode Démo Interactif';
       modeBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-gold-500/20 text-gold-400 border border-gold-400/30';
     }
 
-    // Afficher le sélecteur rapide uniquement en mode Démo
-    if (state.mode !== 'demo') {
+    // Afficher le sélecteur rapide uniquement en mode Démo ou en environnement DEV/TEST
+    if (state.mode !== 'demo' && !isDevEnv()) {
       if (switchLabel) {
         switchLabel.textContent = state.currentUser
           ? 'Session personnelle active (lien magique)'
@@ -312,7 +357,7 @@
     if (state.members.length === 0) {
       pickerSection.classList.add('hidden');
       firstAdminSetup.classList.remove('hidden');
-    } else if (state.mode !== 'demo') {
+    } else if (state.mode !== 'demo' && !isDevEnv()) {
       // En production (Supabase), ne jamais afficher la liste cliquable des tokens secrets :
       // l'accès se fait uniquement via le lien magique (?token=...) ou saisie du code secret.
       pickerSection.classList.add('hidden');
@@ -368,6 +413,24 @@
     document.getElementById('current-user-avatar').textContent = user.avatar || '🎅';
     document.getElementById('current-user-name').textContent = user.name;
 
+    const canAddGifts = canMemberAddGifts(user);
+    const headerAddWishBtn = document.getElementById('btn-header-add-wish');
+    const desktopTabMylist = document.getElementById('desktop-tab-mylist');
+    const mobileTabMylist = document.getElementById('mobile-tab-mylist');
+
+    if (headerAddWishBtn) {
+      headerAddWishBtn.classList.toggle('hidden', !canAddGifts);
+      headerAddWishBtn.classList.toggle('inline-flex', canAddGifts);
+    }
+    if (desktopTabMylist) {
+      desktopTabMylist.classList.toggle('hidden', !canAddGifts);
+      desktopTabMylist.classList.toggle('flex', canAddGifts);
+    }
+    if (mobileTabMylist) {
+      mobileTabMylist.classList.toggle('hidden', !canAddGifts);
+      mobileTabMylist.classList.toggle('flex', canAddGifts);
+    }
+
     const adminBadge = document.getElementById('current-user-admin-badge');
     const desktopTabAdmin = document.getElementById('desktop-tab-admin');
     const mobileTabAdmin = document.getElementById('mobile-tab-admin');
@@ -379,20 +442,21 @@
       desktopTabAdmin.classList.add('flex');
       mobileTabAdmin.classList.remove('hidden');
       mobileTabAdmin.classList.add('flex');
-      mobileNavGrid.classList.remove('grid-cols-3');
-      mobileNavGrid.classList.add('grid-cols-4');
     } else {
       adminBadge.classList.add('hidden');
       desktopTabAdmin.classList.add('hidden');
       desktopTabAdmin.classList.remove('flex');
       mobileTabAdmin.classList.add('hidden');
       mobileTabAdmin.classList.remove('flex');
-      mobileNavGrid.classList.remove('grid-cols-4');
-      mobileNavGrid.classList.add('grid-cols-3');
     }
 
+    const mobileTabsCount = 2 + (canAddGifts ? 1 : 0) + (user.is_admin ? 1 : 0);
+    mobileNavGrid.classList.remove('grid-cols-2', 'grid-cols-3', 'grid-cols-4');
+    mobileNavGrid.classList.add(`grid-cols-${mobileTabsCount}`);
+
     // Compteurs pour les badges de navigation
-    const totalGiftsCount = state.gifts.length;
+    const visibleGifts = state.gifts.filter((g) => isOwnerVisibleToUser(g.owner_id, user));
+    const totalGiftsCount = visibleGifts.length;
     const myWishesCount = state.gifts.filter(
       (g) => String(g.owner_id) === String(user.id)
     ).length;
@@ -467,13 +531,29 @@
     const user = state.currentUser;
     if (!user) return;
 
+    const visibleGifts = state.gifts.filter((g) => isOwnerVisibleToUser(g.owner_id, user));
+
     // 1. Pilules de filtre par membre
     const memberPillsContainer = document.getElementById('family-member-pills');
     const giftCountsByMember = new Map();
-    state.gifts.forEach((g) => {
+    visibleGifts.forEach((g) => {
       const key = String(g.owner_id);
       giftCountsByMember.set(key, (giftCountsByMember.get(key) || 0) + 1);
     });
+
+    // Masquer des pilules les membres qui ne peuvent pas avoir de liste ET qui ont 0 cadeau
+    const visibleMembers = state.members.filter(
+      (m) =>
+        isOwnerVisibleToUser(m.id, user) &&
+        (canMemberAddGifts(m) || (giftCountsByMember.get(String(m.id)) || 0) > 0)
+    );
+
+    if (
+      state.memberFilter !== 'all' &&
+      !visibleMembers.some((m) => String(m.id) === String(state.memberFilter))
+    ) {
+      state.memberFilter = 'all';
+    }
 
     const allPillActive = state.memberFilter === 'all' ? 'active' : 'bg-cream-50 text-pine-900 border-pine-900/15 hover:bg-cream-100';
     let memberPillsHtml = `
@@ -486,11 +566,11 @@
         <span>Tous les membres</span>
         <span class="px-1.5 py-0.2 rounded-full text-[11px] ${
           state.memberFilter === 'all' ? 'bg-white/20 text-white' : 'bg-pine-900/10 text-pine-900'
-        }">${state.gifts.length}</span>
+        }">${visibleGifts.length}</span>
       </button>
     `;
 
-    memberPillsHtml += state.members
+    memberPillsHtml += visibleMembers
       .map((m) => {
         const isActive = String(state.memberFilter) === String(m.id);
         const count = giftCountsByMember.get(String(m.id)) || 0;
@@ -536,8 +616,14 @@
     const antiSpoilerBanner = document.getElementById('anti-spoiler-filter-banner');
     const isFilteringByStatus = state.statusFilter !== 'all';
     const isFilteringOwnMember = String(state.memberFilter) === String(user.id);
+    const userHasWishlist =
+      canMemberAddGifts(user) || (giftCountsByMember.get(String(user.id)) || 0) > 0;
 
-    if (isFilteringByStatus && (state.memberFilter === 'all' || isFilteringOwnMember)) {
+    if (
+      userHasWishlist &&
+      isFilteringByStatus &&
+      (state.memberFilter === 'all' || isFilteringOwnMember)
+    ) {
       antiSpoilerBanner.classList.remove('hidden');
     } else {
       antiSpoilerBanner.classList.add('hidden');
@@ -545,7 +631,7 @@
 
     // 4. Filtrage strict des cadeaux (avec règle ANTI-SPOILER sur les filtres !)
     const query = state.searchQuery.trim().toLowerCase();
-    const filteredGifts = state.gifts.filter((gift) => {
+    const filteredGifts = visibleGifts.filter((gift) => {
       const isOwn = Boolean(gift.is_own_gift || String(gift.owner_id) === String(user.id));
 
       // RÈGLE CRITIQUE ANTI-SPOILER :
@@ -1074,6 +1160,15 @@
         const whatsappText = `🎄 Voici ton lien magique personnel pour notre liste de cadeaux de Noël en famille (${member.name}) : ${magicLink}`;
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(whatsappText)}`;
         const isSelf = String(member.id) === String(user.id);
+        const hiddenIds = getHiddenMemberIds(member);
+        const otherMembers = state.members.filter((m) => String(m.id) !== String(member.id));
+        const visibleOthers = otherMembers.filter((m) => !hiddenIds.has(String(m.id)));
+        const hasRestrictedVisibility = hiddenIds.size > 0 && visibleOthers.length < otherMembers.length;
+        const visibilityLabel = hasRestrictedVisibility
+          ? visibleOthers.length === 0
+            ? '👁️ Aucun autre membre visible'
+            : `👁️ Voit uniquement : ${visibleOthers.map((m) => m.name).join(', ')}`
+          : null;
 
         return `
           <div class="rounded-2xl border border-gray-200 bg-cream-50/50 p-4 flex flex-col justify-between gap-3">
@@ -1098,6 +1193,18 @@
                   </div>
                   <div class="text-[11px] font-mono text-gray-500 truncate mt-0.5" title="${escapeHtml(magicLink)}">
                     ?token=${escapeHtml(member.token)}
+                  </div>
+                  <div class="flex flex-wrap items-center gap-1.5 mt-1">
+                    ${
+                      !canMemberAddGifts(member)
+                        ? '<span class="text-[11px] font-semibold text-cranberry-700 bg-cranberry-50 border border-cranberry-500/20 px-2 py-0.5 rounded-lg inline-block">🚫 Ne peut pas ajouter de cadeaux</span>'
+                        : ''
+                    }
+                    ${
+                      visibilityLabel
+                        ? `<span class="text-[11px] font-semibold text-amber-800 bg-amber-100/80 border border-amber-300/60 px-2 py-0.5 rounded-lg inline-block">${escapeHtml(visibilityLabel)}</span>`
+                        : ''
+                    }
                   </div>
                 </div>
               </div>
@@ -1267,8 +1374,13 @@
     if (keyInput) keyInput.value = supaCfg.anonKey || '';
 
     if (state.mode === 'supabase') {
-      dbModeBadge.textContent = '🟢 Connecté à Supabase';
-      dbModeBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900';
+      if (isDevEnv()) {
+        dbModeBadge.textContent = '🧪 Connecté à Supabase TEST (DEV)';
+        dbModeBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900';
+      } else {
+        dbModeBadge.textContent = '🟢 Connecté à Supabase';
+        dbModeBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900';
+      }
     } else {
       dbModeBadge.textContent = '✨ Mode Démo Local';
       dbModeBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-gold-100 text-pine-900';
@@ -1309,6 +1421,10 @@
 
   // Modale Ajout / Modification de cadeau
   function openGiftModal(gift = null) {
+    if (!gift && !canMemberAddGifts(state.currentUser)) {
+      showToast('Ton profil ne permet pas d’ajouter de cadeaux.', 'warning');
+      return;
+    }
     const modal = document.getElementById('modal-gift');
     const modalTitle = document.getElementById('modal-gift-title');
     const idInput = document.getElementById('gift-id');
@@ -1412,6 +1528,10 @@
     const avatarInput = document.getElementById('member-avatar-input');
     const tokenInput = document.getElementById('member-token-input');
     const adminCheckbox = document.getElementById('member-admin-checkbox');
+    const canAddGiftsCheckbox = document.getElementById('member-can-add-gifts-checkbox');
+    const visibilityList = document.getElementById('member-visibility-list');
+
+    const hiddenSet = getHiddenMemberIds(member);
 
     if (member) {
       titleEl.textContent = `✏️ Modifier ${member.name}`;
@@ -1420,6 +1540,9 @@
       avatarInput.value = member.avatar || '🎅';
       tokenInput.value = member.token || '';
       adminCheckbox.checked = Boolean(member.is_admin);
+      if (canAddGiftsCheckbox) {
+        canAddGiftsCheckbox.checked = canMemberAddGifts(member);
+      }
     } else {
       titleEl.textContent = '👤 Ajouter un membre de la famille';
       idInput.value = '';
@@ -1427,6 +1550,40 @@
       avatarInput.value = '🎅';
       tokenInput.value = '';
       adminCheckbox.checked = false;
+      if (canAddGiftsCheckbox) {
+        canAddGiftsCheckbox.checked = true;
+      }
+    }
+
+    if (visibilityList) {
+      const otherMembers = state.members.filter(
+        (m) => !member || String(m.id) !== String(member.id)
+      );
+      if (otherMembers.length === 0) {
+        visibilityList.innerHTML = `
+          <div class="col-span-full text-xs text-gray-400 italic py-1">
+            Aucun autre membre enregistré pour le moment.
+          </div>
+        `;
+      } else {
+        visibilityList.innerHTML = otherMembers
+          .map((m) => {
+            const isVisible = !hiddenSet.has(String(m.id));
+            return `
+              <label class="flex items-center gap-2 p-2 rounded-xl border border-gray-200 bg-white hover:bg-cream-50 cursor-pointer text-xs">
+                <input
+                  type="checkbox"
+                  data-visible-member-id="${escapeHtml(m.id)}"
+                  ${isVisible ? 'checked' : ''}
+                  class="w-4 h-4 rounded text-pine-900 focus:ring-pine-900"
+                />
+                <span>${escapeHtml(m.avatar || '🎅')}</span>
+                <span class="font-semibold text-pine-900 truncate">${escapeHtml(m.name)}</span>
+              </label>
+            `;
+          })
+          .join('');
+      }
     }
 
     modal.classList.remove('hidden');
@@ -1696,6 +1853,28 @@
       });
     }
 
+    // Boutons Tout cocher / Tout décocher pour la visibilité des membres
+    const btnVisAll = document.getElementById('btn-visibility-all');
+    const btnVisNone = document.getElementById('btn-visibility-none');
+    if (btnVisAll) {
+      btnVisAll.addEventListener('click', () => {
+        document
+          .querySelectorAll('#member-visibility-list [data-visible-member-id]')
+          .forEach((cb) => {
+            cb.checked = true;
+          });
+      });
+    }
+    if (btnVisNone) {
+      btnVisNone.addEventListener('click', () => {
+        document
+          .querySelectorAll('#member-visibility-list [data-visible-member-id]')
+          .forEach((cb) => {
+            cb.checked = false;
+          });
+      });
+    }
+
     // Soumission du formulaire Membre (Ajout / Modification Admin)
     const memberForm = document.getElementById('form-member');
     if (memberForm) {
@@ -1706,6 +1885,17 @@
         const avatar = document.getElementById('member-avatar-input').value.trim() || '🎅';
         const customToken = document.getElementById('member-token-input').value.trim();
         const isAdmin = document.getElementById('member-admin-checkbox').checked;
+        const canAddGiftsEl = document.getElementById('member-can-add-gifts-checkbox');
+        const canAddGifts = canAddGiftsEl ? canAddGiftsEl.checked : true;
+
+        const hiddenMemberIds = [];
+        document
+          .querySelectorAll('#member-visibility-list [data-visible-member-id]')
+          .forEach((cb) => {
+            if (!cb.checked) {
+              hiddenMemberIds.push(cb.getAttribute('data-visible-member-id'));
+            }
+          });
 
         try {
           if (memberId) {
@@ -1713,6 +1903,8 @@
               name,
               avatar,
               is_admin: isAdmin,
+              can_add_gifts: canAddGifts,
+              hidden_member_ids: hiddenMemberIds,
               customToken: customToken || null
             });
             showToast(`Profil de ${name} mis à jour !`, 'success');
@@ -1721,6 +1913,8 @@
               name,
               avatar,
               is_admin: isAdmin,
+              can_add_gifts: canAddGifts,
+              hidden_member_ids: hiddenMemberIds,
               customToken: customToken || null
             });
             showToast(`Membre ${avatar} ${name} ajouté à la famille !`, 'success');
